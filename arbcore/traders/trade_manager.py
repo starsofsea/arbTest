@@ -1,4 +1,4 @@
-import os
+﻿import os
 import sys
 import time
 import socket
@@ -45,7 +45,7 @@ class TradeManager:
     def _init_tdx(self):
         try:
             # 仅使用新版 tqcenter 路径
-            tdx_api_path = r'D:\new_tdx_test\PYPlugins\user'
+            tdx_api_path = r'D:\Programs\Trader\tdx\PYPlugins\user'
             
             # 清除旧版缓存
             if r'D:\new_tdx64\PYPlugins\user' in sys.path:
