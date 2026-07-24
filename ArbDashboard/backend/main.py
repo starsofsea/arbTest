@@ -334,6 +334,7 @@ async def lifespan(app: FastAPI):
             
             # [V4.1] 尝试多种 Python 路径
             python_exe_candidates = [
+                "D:\\Programs\\.pyenv\\pyenv-win\\PythonEnv\\Abt_py3119\\Scripts\\python.exe",  # pyenv Python 环境
                 os.path.normpath(os.path.join(backend_dir, "..", "..", ".venv", "Scripts", "python.exe")),
                 os.path.normpath(os.path.join(backend_dir, "..", "..", "..", ".venv", "Scripts", "python.exe")),
                 os.path.normpath(os.path.join(backend_dir, "..", "..", "..", "Python311", "python.exe")),
@@ -2310,6 +2311,7 @@ async def trigger_task(task: str):
     
     # [V4.1] 尝试多种 Python 路径
     python_exe_candidates = [
+        "D:\\Programs\\.pyenv\\pyenv-win\\PythonEnv\\Abt_py3119\\Scripts\\python.exe",  # pyenv Python 环境
         os.path.normpath(os.path.join(backend_dir, "..", "..", ".venv", "Scripts", "python.exe")),  # 项目 .venv
         os.path.normpath(os.path.join(backend_dir, "..", "..", "..", ".venv", "Scripts", "python.exe")),  # 上级 .venv
         os.path.normpath(os.path.join(backend_dir, "..", "..", "..", "Python311", "python.exe")),  # Python311

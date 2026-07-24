@@ -137,11 +137,13 @@ def _get_all_related_indices() -> List[tuple]:
             result.append((code, 'skip'))
             continue
             
-        # 6位纯数字CSI指数 (如 930917.CSI, 000922.CSI)
+        # 6位纯数字指数
         if len(clean) == 6 and clean.isdigit():
             if clean.startswith('9'):
-                result.append((code, 'a_share_sz'))  # 深圳
-            else:  # 以0开头
+                result.append((code, 'a_share_sz'))  # 深圳 CSI
+            elif clean.startswith('399'):
+                result.append((code, 'a_share_sz'))  # 深圳指数
+            else:
                 result.append((code, 'a_share_sh'))  # 上海
             continue
         # A股深圳指数
@@ -156,12 +158,17 @@ def _get_all_related_indices() -> List[tuple]:
         # 带 .HI 后缀的港股指数
         elif clean.endswith('.HI'):
             result.append((code, 'hk'))
+
         # 美股指数
         elif clean in ('.INX', '.NDX'):
             result.append((code, 'us_index'))
         # 日本指数(N225等) — 通过新浪全球指数接口获取
         elif clean in JP_INDICES:
             result.append((code, 'jp_index'))
+        elif clean == 'SZ399989':
+            result.append((code, 'a_share_sz'))
+        elif clean in ('中小100', '移动互联', '证券公司', '中证TMT', '中证500'):
+            result.append((code, 'skip'))  # 中文名称，无统一代码，跳过
         else:
             result.append((code, 'skip'))
     
@@ -362,6 +369,162 @@ def _upsert_index_history(symbol: str, date: str, close: float, source: str = 's
     )
     conn.commit()
     conn.close()
+
+
+def repair_exchange_rate() -> dict:
+    """
+    回填缺失的汇率数据：查找 exchange_rate 表中两次有数据日期之间的空缺，
+    用前一个已知值填充中间缺失的交易日。
+    汇率日间变化极小(<0.1%)，使用最近可用汇率做估值近似足够。
+    同时调用 step3 尝试获取今日实时汇率。
+    """
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    
+    # 获取所有有 usd_cny_mid 的日期（升序）
+    rows = c.execute(
+        "SELECT date, usd_cny_mid, hkd_cny_mid, usd_cnh, usd_cny_spot, jpy_cny_mid "
+        "FROM exchange_rate WHERE usd_cny_mid IS NOT NULL ORDER BY date"
+    ).fetchall()
+    if len(rows) < 1:
+        return {"status": "error", "message": "exchange_rate 表无有效数据"}
+    
+    # 获取最新 NAV 日期
+    max_nav = c.execute("SELECT MAX(date) FROM unified_fund_history WHERE nav IS NOT NULL").fetchone()[0]
+    target_end = max_nav if max_nav else datetime.now().strftime('%Y-%m-%d')
+    target_end_dt = datetime.strptime(target_end, '%Y-%m-%d')
+    
+    from datetime import timedelta
+    
+    # 取最后一个有值日期作为基准，向前填充中间缺失的日期
+    last_date_str = rows[-1][0]
+    last_row = rows[-1][1:]
+    current_rate = dict(zip(['usd_cny_mid','hkd_cny_mid','usd_cnh','usd_cny_spot','jpy_cny_mid'], last_row))
+    
+    # 搜集所有已有日期
+    existing_dates = {r[0] for r in rows}
+    
+    filled = 0
+    
+    # 从最早有 NAV 的日期到 target_end，检查每个工作日
+    first_nav = c.execute("SELECT MIN(date) FROM unified_fund_history WHERE nav IS NOT NULL").fetchone()[0]
+    start_dt = datetime.strptime(first_nav, '%Y-%m-%d') if first_nav else target_end_dt - timedelta(days=60)
+    
+    d = start_dt
+    while d <= target_end_dt:
+        date_str = d.strftime('%Y-%m-%d')
+        # 跳过周末
+        if d.weekday() >= 5:
+            d += timedelta(days=1)
+            continue
+        if date_str in existing_dates:
+            # 已有数据，用此行的值更新 current_rate
+            row_data = c.execute(
+                "SELECT usd_cny_mid, hkd_cny_mid, usd_cnh, usd_cny_spot, jpy_cny_mid FROM exchange_rate WHERE date=?",
+                (date_str,)
+            ).fetchone()
+            if row_data and row_data[0] is not None:
+                current_rate = dict(zip(['usd_cny_mid','hkd_cny_mid','usd_cnh','usd_cny_spot','jpy_cny_mid'], row_data))
+            d += timedelta(days=1)
+            continue
+        # 用当前参考值插入
+        c.execute(
+            "INSERT OR REPLACE INTO exchange_rate (date, usd_cny_mid, hkd_cny_mid, usd_cnh, usd_cny_spot, jpy_cny_mid, updated_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, datetime('now','localtime'))",
+            (date_str, current_rate['usd_cny_mid'], current_rate['hkd_cny_mid'],
+             current_rate['usd_cnh'], current_rate['usd_cny_spot'], current_rate['jpy_cny_mid'])
+        )
+        filled += 1
+        d += timedelta(days=1)
+    
+    conn.commit()
+    conn.close()
+    
+    # 尝试获取今日最新汇率
+    try:
+        sys.path.insert(0, os.path.join(PROJECT_ROOT, 'ArbDashboard', 'backend', 'scheduler'))
+        from daily_updater import DailyUpdater
+        du = DailyUpdater()
+        du.step3_fetch_exchange_rate()
+    except Exception as e:
+        logger.warning(f"获取今日实时汇率失败（不影响回填）: {e}")
+    
+    return {"status": "ok", "message": f"汇率回填完成，填充 {filled} 天缺失数据", "filled": filled}
+
+
+def repair_us_etf_indices() -> dict:
+    """
+    将 usa_etf_daily_prices 中的 ETF 收盘价同步到 index_history，
+    使得 step11 可以基于这些指数数据计算 QDII欧美基金的 static_val。
+    """
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    
+    # 获取所有 QDII欧美基金的相关指数
+    fund_indices = c.execute(
+        "SELECT DISTINCT related_index FROM unified_fund_list WHERE category='QDII欧美'"
+    ).fetchall()
+    
+    # 也获取其他可能用到 ETF 的基金（通过推断）
+    all_indices = c.execute(
+        "SELECT DISTINCT related_index FROM unified_fund_list "
+        "WHERE related_index IS NOT NULL AND related_index != '-' AND related_index != ''"
+    ).fetchall()
+    
+    us_etf_symbols = {'XOP','XLY','XBI','SPY','QQQ','KWEB','RSPH','VNQ','AGG','GLD','USO','INDA','SOXX','XLE','XLK'}
+    
+    total_new = 0
+    synced = []
+    
+    for (raw_idx,) in all_indices:
+        idx = raw_idx.strip().upper()
+        if idx not in us_etf_symbols:
+            continue
+        
+        # 从 usa_etf_daily_prices 获取价格
+        prices = c.execute(
+            "SELECT date, price FROM usa_etf_daily_prices WHERE symbol=? AND price IS NOT NULL ORDER BY date",
+            (idx,)
+        ).fetchall()
+        
+        if not prices:
+            continue
+        
+        existing_dates = c.execute(
+            "SELECT date FROM index_history WHERE symbol=?", (idx,)
+        ).fetchall()
+        existing_set = {r[0] for r in existing_dates}
+        
+        inserted = 0
+        for date_str, close in prices:
+            if date_str in existing_set:
+                continue
+            c.execute(
+                "INSERT OR REPLACE INTO index_history (symbol, date, close, source) VALUES (?, ?, ?, 'usa_etf')",
+                (idx, date_str, close)
+            )
+            inserted += 1
+        
+        if inserted > 0:
+            total_new += inserted
+            synced.append(f"{idx} → 新增 {inserted} 条")
+    
+    conn.commit()
+    conn.close()
+    
+    # 重算 static_val
+    if total_new > 0:
+        recalc = _recalc_all_static_val()
+    else:
+        recalc = {"status": "ok", "detail": "无需重算"}
+    
+    return {
+        "status": "ok",
+        "message": f"ETF指数回填完成，新增 {total_new} 条记录",
+        "new_records": total_new,
+        "details": synced,
+        "recalc": recalc
+    }
 
 
 def _recalc_all_static_val() -> dict:

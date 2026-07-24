@@ -210,7 +210,7 @@ class TdxRealtimeFetcher(BaseRealtimeFetcher):
 
 
 
-            tdx_api_path = r'D:\new_tdx_test\PYPlugins\user'
+            tdx_api_path = r'D:\Programs\Trader\tdx\PYPlugins\user'
 
 
 

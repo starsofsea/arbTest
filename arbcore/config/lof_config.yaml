@@ -10,8 +10,10 @@ funds:
   name: 南方原油
   category: 黄金原油
   holdings:
-    equity_ratio: 89.69
-    cash_ratio: 10.31
+
+    equity_ratio: 89.48
+    cash_ratio: 10.52
+ (本地修改：更新配置、修复数据抓取、优化仪表盘)
   holdings_portfolio: []
   future_hedging:
   - symbol: MCL
@@ -22,17 +24,21 @@ funds:
     name: 微原油期货
   valuation_portfolio:
   - symbol: USO-EU
-    weight: 62.88
+
+    weight: 66.28
     anchor: EU
-  - symbol: USO
-    weight: 19.8
-    anchor: US
   - symbol: USO-JP
-    weight: 17.32
+    weight: 20.11
+ (本地修改：更新配置、修复数据抓取、优化仪表盘)
     anchor: JP
+  - symbol: USO
+    weight: 13.61
+    anchor: US
   trade_etf: USO
   trade_future: MCL
-  position: 89.69
+
+  position: 89.48
+ (本地修改：更新配置、修复数据抓取、优化仪表盘)
   sub_category: 原油
   woody_supported: true
   data_source: woody
@@ -41,8 +47,10 @@ funds:
   name: 嘉实原油
   category: 黄金原油
   holdings:
-    equity_ratio: 87.97
-    cash_ratio: 12.03
+
+    equity_ratio: 86.49
+    cash_ratio: 13.51
+ (本地修改：更新配置、修复数据抓取、优化仪表盘)
   holdings_portfolio:
   - symbol: USO
     weight: 17.22
@@ -88,17 +96,16 @@ funds:
     name: 微原油期货
   valuation_portfolio:
   - symbol: USO-EU
-    weight: 61.65
+
+    weight: 67.44
     anchor: EU
   - symbol: USO
-    weight: 36.33
+    weight: 32.56
     anchor: US
-  - symbol: USO-JP
-    weight: 2.02
-    anchor: JP
   trade_etf: USO
   trade_future: MCL
-  position: 87.97
+  position: 86.49
+ (本地修改：更新配置、修复数据抓取、优化仪表盘)
   sub_category: 原油
   woody_supported: true
   data_source: woody
@@ -107,8 +114,10 @@ funds:
   name: 易方达原油
   category: 黄金原油
   holdings:
-    equity_ratio: 90.84
-    cash_ratio: 9.16
+
+    equity_ratio: 90.9
+    cash_ratio: 9.1
+ (本地修改：更新配置、修复数据抓取、优化仪表盘)
   holdings_portfolio:
   - symbol: CRUD.L
     weight: 18.52
@@ -149,17 +158,19 @@ funds:
     name: 微原油期货
   valuation_portfolio:
   - symbol: USO-EU
-    weight: 57.44
+
+    weight: 59.8
     anchor: EU
   - symbol: USO
-    weight: 30.48
+    weight: 25.32
     anchor: US
   - symbol: USO-HK
-    weight: 12.08
+    weight: 14.87
     anchor: HK
   trade_etf: USO
   trade_future: MCL
-  position: 90.84
+  position: 90.9
+ (本地修改：更新配置、修复数据抓取、优化仪表盘)
   sub_category: 原油
   woody_supported: true
   data_source: woody
@@ -170,22 +181,26 @@ funds:
   trade_etf: GLD,USO
   trade_future: ''
   holdings:
-    equity_ratio: 95.41
-    cash_ratio: 4.59
+
+    equity_ratio: 94.76
+    cash_ratio: 5.24
   valuation_portfolio:
   - symbol: GLD
-    weight: 73.94
+    weight: 77.22
     anchor: US
   - symbol: SLV
-    weight: 15.54
+    weight: 14.29
     anchor: US
   - symbol: USO
-    weight: 10.51
+    weight: 8.5
+ (本地修改：更新配置、修复数据抓取、优化仪表盘)
     anchor: US
   sina_index_url: ''
   holdings_portfolio: []
   future_hedging: []
-  position: 95.41
+
+  position: 94.76
+ (本地修改：更新配置、修复数据抓取、优化仪表盘)
   sub_category: 黄金
   woody_supported: true
   data_source: woody
@@ -196,17 +211,19 @@ funds:
   trade_etf: GLD,USO
   trade_future: ''
   holdings:
-    equity_ratio: 74.12
-    cash_ratio: 25.88
+
+    equity_ratio: 72.09
+    cash_ratio: 27.91
   valuation_portfolio:
   - symbol: GLD
-    weight: 53.59
+    weight: 53.31
     anchor: US
   - symbol: USO-EU
-    weight: 37.79
+    weight: 40.84
     anchor: EU
   - symbol: USO
-    weight: 8.62
+    weight: 5.85
+ (本地修改：更新配置、修复数据抓取、优化仪表盘)
     anchor: US
   sina_index_url: ''
   holdings_portfolio: []
@@ -223,7 +240,9 @@ funds:
     currency: USD
     exchange: SMART
     name: 原油
-  position: 74.12
+
+  position: 72.09
+ (本地修改：更新配置、修复数据抓取、优化仪表盘)
   sub_category: 黄金
   woody_supported: true
   data_source: woody
@@ -232,8 +251,10 @@ funds:
   name: 嘉实黄金
   category: 黄金原油
   holdings:
-    equity_ratio: 96.37
-    cash_ratio: 3.63
+
+    equity_ratio: 96.34
+    cash_ratio: 3.66
+ (本地修改：更新配置、修复数据抓取、优化仪表盘)
   holdings_portfolio:
   - symbol: GLD
     weight: 19.02
@@ -274,14 +295,16 @@ funds:
     name: ''
   valuation_portfolio:
   - symbol: GLD
-    weight: 52.6
+
+    weight: 52.28
     anchor: US
   - symbol: GLD-EU
-    weight: 47.4
+    weight: 47.72
     anchor: EU
   trade_etf: GLD
   trade_future: MGC
-  position: 96.37
+  position: 96.34
+ (本地修改：更新配置、修复数据抓取、优化仪表盘)
   sub_category: 黄金
   woody_supported: true
   data_source: woody
@@ -734,19 +757,23 @@ funds:
   trade_etf: XLE
   trade_future: ''
   holdings:
-    equity_ratio: 91.42
-    cash_ratio: 8.58
+
+    equity_ratio: 92.49
+    cash_ratio: 7.51
   valuation_portfolio:
   - symbol: XLE
-    weight: 89.67
+    weight: 89.58
     anchor: US
   - symbol: USO
-    weight: 10.33
+    weight: 10.42
+ (本地修改：更新配置、修复数据抓取、优化仪表盘)
     anchor: US
   sina_index_url: ''
   holdings_portfolio: []
   future_hedging: []
-  position: 91.42
+
+  position: 92.49
+ (本地修改：更新配置、修复数据抓取、优化仪表盘)
   sub_category: 黄金原油
   woody_supported: true
   data_source: woody
@@ -804,19 +831,23 @@ funds:
   trade_etf: SOXX
   trade_future: ''
   holdings:
-    equity_ratio: 90.41
-    cash_ratio: 9.59
+
+    equity_ratio: 90.69
+    cash_ratio: 9.31
   valuation_portfolio:
   - symbol: SOXX
-    weight: 76.48
+    weight: 76.08
     anchor: US
   - symbol: SZ159560
-    weight: 23.52
+    weight: 23.92
+ (本地修改：更新配置、修复数据抓取、优化仪表盘)
     anchor: US
   sina_index_url: ''
   holdings_portfolio: []
   future_hedging: []
-  position: 90.41
+
+  position: 90.69
+ (本地修改：更新配置、修复数据抓取、优化仪表盘)
   sub_category: 混合跨境
   woody_supported: true
   data_source: woody

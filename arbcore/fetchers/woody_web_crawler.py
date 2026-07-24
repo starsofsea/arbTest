@@ -49,7 +49,7 @@ class WoodyWebCrawler:
             
             if response.status_code == 200:
                 # 使用BeautifulSoup解析登录页面表单
-                soup = BeautifulSoup(response.text, 'html.parser')
+                soup = BeautifulSoup(response_text, 'html.parser')
                 
                 # 查找登录表单
                 login_form = soup.find('form')
@@ -111,7 +111,7 @@ class WoodyWebCrawler:
                     
                     if test_response.status_code == 200:
                         # 检查是否跳转到登录页面
-                        if '登录帐号' not in test_response.text:
+                        if '登录帐号' not in test_response_text:
                             print("[SUCCESS] 登录成功！")
                             return True
                         else:
@@ -130,7 +130,7 @@ class WoodyWebCrawler:
                         # 验证登录
                         test_url = "https://palmmicro.com/woody/res/stockhistorycn.php?symbol=GLD"
                         test_response = self.session.get(test_url, headers=self.woody_headers, timeout=15, verify=False)
-                        if test_response.status_code == 200 and '登录帐号' not in test_response.text:
+                        if test_response.status_code == 200 and '登录帐号' not in test_response_text:
                             print("[SUCCESS] 登录成功！")
                             return True
                                 
@@ -192,7 +192,22 @@ class WoodyWebCrawler:
                 
                 if response.status_code == 200:
                     response.encoding = response.apparent_encoding
-                    soup = BeautifulSoup(response.text, 'html.parser')
+                    # 尝试不同的编码方式来处理特殊字符
+                    try:
+                        response_text = response_text
+                    except UnicodeDecodeError:
+                        # 如果默认编码失败，尝试其他编码
+                        for encoding in ['utf-8', 'gbk', 'gb2312', 'latin1']:
+                            try:
+                                response_text = response.content.decode(encoding, errors='ignore')
+                                break
+                            except:
+                                continue
+                        else:
+                            response_text = response.content.decode('utf-8', errors='ignore')
+                    else:
+                        response_text = response_text
+                    soup = BeautifulSoup(response_text, 'html.parser')
                     tables = soup.find_all('table')
                     
                     found = False
@@ -277,7 +292,7 @@ class WoodyWebCrawler:
                 if response.status_code == 200:
                     # 尝试自动检测编码
                     response.encoding = response.apparent_encoding
-                    page_text = response.text
+                    page_text = response_text
                     
                     # 初始化基金数据
                     fund_data = {
@@ -390,7 +405,7 @@ class WoodyWebCrawler:
                 response.encoding = response.apparent_encoding
                       
                 # 使用BeautifulSoup解析HTML
-                soup = BeautifulSoup(response.text, 'html.parser')
+                soup = BeautifulSoup(response_text, 'html.parser')
                 
                 # 查找包含"仓位估算值使用"的文本
                 page_text = soup.get_text()
@@ -466,10 +481,10 @@ class WoodyWebCrawler:
                 
                 # 🚀 核心修复：绕过 bs4(4.13.0) 的 SoupStrainer Bug
                 try:
-                    tables = pd.read_html(StringIO(response.text), flavor='lxml')
+                    tables = pd.read_html(StringIO(response_text), flavor='lxml')
                 except Exception:
                     try:
-                        tables = pd.read_html(response.text)
+                        tables = pd.read_html(response_text)
                     except Exception as e:
                         print(f"  [ERROR] 解析错误: HTML 表格提取失败 - {e}")
                         return None
@@ -586,27 +601,52 @@ class WoodyWebCrawler:
                 
                 if response.status_code == 200:
                     response.encoding = response.apparent_encoding
+                    # 尝试不同的编码方式来处理特殊字符
+                    try:
+                        response_text = response_text
+                    except UnicodeDecodeError:
+                        # 如果默认编码失败，尝试其他编码
+                        for encoding in ['utf-8', 'gbk', 'gb2312', 'latin1']:
+                            try:
+                                response_text = response.content.decode(encoding, errors='ignore')
+                                break
+                            except:
+                                continue
+                        else:
+                            response_text = response.content.decode('utf-8', errors='ignore')
+                    else:
+                        response_text = response_text
                     
                     # 检查是否触发反爬人机验证
-                    if "Please wait while your request is being verified" in response.text or "One moment, please" in response.text:
+                    if "Please wait while your request is being verified" in response_text or "One moment, please" in response_text:
                         if attempt < max_retries - 1:
                             continue
                         else:
                             print(f"  [ERROR] 遭遇反爬验证，已放弃获取 {symbol}")
                             return None
                     
-                    # 尝试解析 HTML 表格
+                    # 尝试解析 HTML 表格 - 修复编码问题
                     try:
-                        tables = pd.read_html(StringIO(response.text), flavor='lxml')
+                        # 使用StringIO包装，确保编码正确
+                        tables = pd.read_html(StringIO(response_text), flavor='lxml')
                         if tables: break
                     except Exception:
                         try:
-                            tables = pd.read_html(response.text)
+                            # 尝试不同的编码方式
+                            for encoding in ['utf-8', 'gbk', 'gb2312', 'latin1']:
+                                try:
+                                    tables = pd.read_html(StringIO(response_text.encode(encoding, errors='ignore').decode('utf-8', errors='ignore')))
+                                    if tables: break
+                                except:
+                                    continue
                             if tables: break
                         except Exception as e:
                             if attempt < max_retries - 1:
                                 continue
-                            print(f"  [ERROR] HTML表格提取失败: {str(e)[:100]}")
+                            try:
+                                print(f"  [ERROR] HTML表格提取失败: {str(e)[:100]}")
+                            except UnicodeEncodeError:
+                                print("  [ERROR] HTML表格提取失败")
                             return None
                 else:
                     if attempt < max_retries - 1:
@@ -722,7 +762,10 @@ class WoodyWebCrawler:
                 if data:
                     df = pd.DataFrame(data).drop_duplicates(subset=['日期']).sort_values('日期', ascending=False)
                     latest_d, latest_p = df['日期'].iloc[0], df['价格'].iloc[0]
-                    print(f"  [OK] 成功读取 {symbol} 数据，最新日期: {latest_d}，最新价格: {latest_p}")
+                    try:
+                        print(f"  [OK] 成功读取 {symbol} 数据，最新日期: {latest_d}，最新价格: {latest_p}")
+                    except UnicodeEncodeError:
+                        print(f"  [OK] 成功读取 {symbol} 数据")
                     return df
                 else:
                     print(f"  [ERROR] 表格内未发现有效数据行 ({symbol})")
@@ -732,7 +775,10 @@ class WoodyWebCrawler:
                 return None
 
         except Exception as e:
-            print(f"  [ERROR] 爬取历史数据异常: {e}")
+            try:
+                print(f"  [ERROR] 爬取历史数据异常: {e}")
+            except UnicodeEncodeError:
+                print("  [ERROR] 爬取历史数据异常")
             return None
 
     def fetch_sina_historical_data(self, symbol, max_records=30):
@@ -745,7 +791,7 @@ class WoodyWebCrawler:
         try:
             response = requests.get(url, headers=self.woody_headers, timeout=15, verify=False, proxies={"http": None, "https": None})
             if response.status_code == 200:
-                text = response.text
+                text = response_text
                 if text == 'null' or not text:
                     print(f"  [SINA_ERROR] {symbol} 查询无数据 (返回 null 或空)")
                     return None
@@ -806,7 +852,7 @@ class WoodyWebCrawler:
                 
                 response = self._make_request(url, timeout=15)
                 if response.status_code == 200:
-                    soup = BeautifulSoup(response.text, 'html.parser')
+                    soup = BeautifulSoup(response_text, 'html.parser')
                     # 查找校准记录表格
                     table = None
                     for t in soup.find_all('table'):
@@ -865,7 +911,7 @@ class WoodyWebCrawler:
             response = self._make_request(url, timeout=15)
             if response.status_code == 200:
                 response.encoding = response.apparent_encoding
-                page_text = response.text
+                page_text = response_text
                 
                 # 使用BeautifulSoup解析HTML
                 soup = BeautifulSoup(page_text, 'html.parser')

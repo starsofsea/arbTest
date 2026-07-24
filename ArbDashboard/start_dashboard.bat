@@ -11,6 +11,7 @@ set SCRIPT_DIR=%SCRIPT_DIR:~0,-1%
 for /f "tokens=5" %%a in ('netstat -ano ^| findstr :8000 ^| findstr LISTENING') do taskkill /F /PID %%a >nul 2>&1
 timeout /t 2 /nobreak > nul
 
+
 :: Start Backend
 echo [1/2] Starting Backend (port 8000)...
 start "ArbNext Backend" cmd /k "cd /d "%SCRIPT_DIR%\backend" && python main.py"
@@ -18,6 +19,7 @@ start "ArbNext Backend" cmd /k "cd /d "%SCRIPT_DIR%\backend" && python main.py"
 :: Start Frontend
 echo [2/2] Starting Frontend (port 5173)...
 start "ArbNext Frontend" cmd /k "cd /d "%SCRIPT_DIR%\frontend" && npm run dev"
+ (本地修改：更新配置、修复数据抓取、优化仪表盘)
 
 echo.
 echo ========================================

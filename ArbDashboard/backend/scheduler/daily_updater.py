@@ -1267,19 +1267,21 @@ class DailyUpdater(BaseApp):
                     if current_idx_close is None:
                         continue
 
-                    # [AI-2026-07-13] 找基准日：前一个有 nav 的交易日（prev_idx_close 从 idx_data 获取，与 current_idx_close 同源）
+
+                    # 找基准日：前一个有 nav 和 index_close 的交易日（跳过 index_close 缺失的日期，如美股节假日）
                     cursor.execute(
-                        "SELECT date, nav FROM unified_fund_history "
-                        "WHERE fund_code = ? AND date < ? AND nav IS NOT NULL "
+                        "SELECT date, nav, index_close FROM unified_fund_history "
+                        "WHERE fund_code = ? AND date < ? AND nav IS NOT NULL AND index_close IS NOT NULL "
+ (本地修改：更新配置、修复数据抓取、优化仪表盘)
                         "ORDER BY date DESC LIMIT 1",
                         (fund_code, date))
                     prev_row = cursor.fetchone()
                     if not prev_row:
                         continue
 
-                    prev_date, prev_nav = prev_row
-                    if not prev_nav or float(prev_nav) <= 0:
-                        continue
+
+                    prev_date, prev_nav, prev_idx_close = prev_row
+ (本地修改：更新配置、修复数据抓取、优化仪表盘)
 
                     # 从 index_history 获取基准日指数值（与 current_idx_close 同源），避免 step5 写入的 ETF 价格污染
                     # [AI-2026-07-23] 修复：如果 prev_date 是休市日（无指数数据），往前找最近有数据的交易日
@@ -1399,16 +1401,58 @@ class DailyUpdater(BaseApp):
 
         # 默认：完整流水线（周末跳过除净值外的所有步骤）
         if now.weekday() in (5, 6):
+            # [AI-2026-07-11] 检测数据是否滞后（汇率/指数停在旧日期而NAV已到最新），尝试回填
+            try:
+                conn = self.db._get_conn()
+                latest_nav = conn.execute("SELECT MAX(date) FROM unified_fund_history WHERE nav IS NOT NULL").fetchone()[0]
+                latest_rate = conn.execute("SELECT MAX(date) FROM exchange_rate").fetchone()[0]
+                conn.close()
+                if latest_nav and latest_rate and latest_rate < latest_nav:
+                    days_behind = (datetime.strptime(latest_nav, '%Y-%m-%d') - datetime.strptime(latest_rate, '%Y-%m-%d')).days
+                    if days_behind >= 2:
+                        self.logger.warning(f"⚠️ 数据滞后 {days_behind} 天(汇率最新={latest_rate}, NAV最新={latest_nav})，尝试完整流水线回填...")
+                        # [AI-2026-07-13] 先回填指数历史数据（走新浪/腾讯公开API），再跑完整流水线
+                        try:
+                            sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+                            from services.index_repair_service import repair_with_sina
+                            self.logger.info("📈 正在通过新浪/腾讯API回填指数历史数据...")
+                            result = repair_with_sina(days_back=60)
+                            self.logger.info(f"📈 指数回填结果: {result.get('message', '')}")
+                        except Exception as idx_err:
+                            self.logger.warning(f"指数回填失败，继续执行流水线: {idx_err}")
+                        self._run_pipeline()
+                        self.logger.info("🎉 [周末] 完整流水线回填完毕！")
+                        return
+            except Exception as e:
+                self.logger.warning(f"数据滞后检测失败，走周末模式: {e}")
+
             self.logger.info("📅 [周末] 跳过完整流水线，仅执行净值更新+静态估值...")
             self.step4_fetch_lof_market()
             # [AI-2026-07-04] 周末也跑静态估值计算，避免 nav 更新后 static_val 缺失
             self._step10_calculate_static_valuation()
+            # [AI-2026-07-11] 周末补上 step11，覆盖国内LOF/QDII亚洲基金
+            self.step11_simple_static_valuation()
             self.logger.info("🎉 [周末净值+静态估值] 更新完毕！")
             return
         self._run_pipeline()
 
     def _run_pipeline(self):
         self.logger.info("🚀 开始执行每日数据大一统更新流水线...")
+        # [AI-2026-07-13] 检查指数历史数据是否滞后，若滞后则走新浪/腾讯API回填
+        try:
+            conn = self.db._get_conn()
+            latest_idx = conn.execute("SELECT MAX(date) FROM index_history").fetchone()[0]
+            conn.close()
+            if latest_idx:
+                idx_days_behind = (datetime.now() - datetime.strptime(latest_idx, '%Y-%m-%d')).days
+                if idx_days_behind >= 3:
+                    self.logger.warning(f"📈 指数数据滞后 {idx_days_behind} 天(最新={latest_idx})，尝试通过新浪/腾讯API回填...")
+                    sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+                    from services.index_repair_service import repair_with_sina
+                    result = repair_with_sina(days_back=60)
+                    self.logger.info(f"📈 指数回填结果: {result.get('message', '')}")
+        except Exception as idx_err:
+            self.logger.warning(f"指数回填检查/执行失败: {idx_err}")
         self.step1_and_2_fetch_woody_api()
         self.step2_5_sync_yaml_with_latest_factors()
         self.step3_fetch_exchange_rate()

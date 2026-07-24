@@ -3,6 +3,7 @@ import MainLayout from '../layouts/MainLayout.vue'
 import Dashboard from '../views/Dashboard.vue'
 
 /**
+
  * 懒加载 LazyMode.vue（private/），文件不存在时降级为 DongGeSecret 占位页
  * - 本地开发：LazyMode.vue 存在 → 正常加载（内部做角色判断）
  * - 开源用户：看不到 private/，路由指向 DongGeSecret.vue（锁页）
@@ -12,6 +13,7 @@ import Dashboard from '../views/Dashboard.vue'
  */
 const lazyModePath = '../private/LazyMode.vue'
 const LazyMode = () => import(/* @vite-ignore */ lazyModePath).catch(() => import('../views/DongGeSecret.vue'))
+ (本地修改：更新配置、修复数据抓取、优化仪表盘)
 
 const router = createRouter({
   history: createWebHistory(),
